@@ -1,6 +1,20 @@
-# Ignorar arquivos de configuração sensíveis
-config/.env
-.env
+# Python
+__pycache__/
+*.pyc
+.venv/
 
-# Ignorar notebooks
-Notebooks/
+# Airflow
+logs/
+tmp/
+*.db
+
+# Dados
+data/*.csv
+data/*.parquet
+
+# IDEs
+.vscode/
+.idea/
+
+# Variáveis de ambiente
+config/.env

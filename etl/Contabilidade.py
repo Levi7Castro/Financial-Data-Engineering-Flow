@@ -6,7 +6,8 @@ import os
 import numpy as np
 
 # Configuração Global
-load_dotenv(dotenv_path=r"C:\Users\livsa\DM_Financeiro\Financial-Data-Engineering-Flow\config\.env")
+load_dotenv(dotenv_path="/opt/airflow/config/.env")
+
 
 def get_db_connection():
     """
