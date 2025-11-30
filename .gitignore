@@ -1,0 +1,6 @@
+# Ignorar arquivos de configuração sensíveis
+config/.env
+.env
+
+# Ignorar notebooks
+Notebooks/
