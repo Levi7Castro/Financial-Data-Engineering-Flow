@@ -3,9 +3,8 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from dotenv import load_dotenv
 import os
-import numpy as np
 
-# Configuração Global
+# Carrega variáveis de ambiente (Caminho do Airflow)
 load_dotenv(dotenv_path="/opt/airflow/config/.env")
 
 def get_db_connection():
@@ -31,41 +30,47 @@ def extract_data(filepath):
     """
     print(f"Lendo arquivo: {filepath}")
     
-    # CORREÇÃO IMPORTANTE: Adicionei header=2 aqui se sua planilha 
-    # realmente tiver linhas vazias no topo antes do cabeçalho.
-    # Se o cabeçalho for na primeira linha, remova o parameter 'header=2'.
+    # IMPORTANTE: Mantido header=2 conforme seu código original.
+    # Isso significa que o cabeçalho está na linha 3 do Excel.
     df = pd.read_excel(filepath, sheet_name="Filial", header=2) 
     
     return df
 
 def transform_data(df):
     """
-    Realiza o tratamento de nulos.
+    Realiza o tratamento de nulos e renomeia colunas.
     """
     print("Iniciando transformações de dados...")
     
-    # Converte NaN para None
+    # Renomeia para bater com o banco de dados
+    # Certifique-se que no Excel a coluna se chama 'NomeFilial'
+    if 'NomeFilial' in df.columns:
+        df = df.rename(columns={'NomeFilial': 'Nome Fantasia'})
+    
+    # Converte NaN para None (para o PostgreSQL aceitar)
     df = df.where(pd.notnull(df), None)
-    df = df.rename(columns={'NomeFilial': 'Nome Fantasia'})
     
     return df
 
 def load_data(conn, df):
     """
-    Realiza o TRUNCATE e o INSERT na tabela dFilial.
+    Realiza o TRUNCATE e o INSERT na tabela dFiliais.
     """
     cursor = conn.cursor()
     
     try:
         # 1. Limpeza
-        print("Limpando tabela dFilial...") 
-        # Padronizado para Singular (dFilial) para evitar erro de tabela inexistente
+        print("Limpando tabela dFiliais...") 
         cursor.execute("TRUNCATE TABLE public.dFiliais;")
 
         # 2. Definição da Ordem das Colunas
-        # Certifique-se que no Excel o nome é exatamente 'Nome Fantasia'
         colunas_ordem = ['CodFilial', 'Nome Fantasia', 'TipoFilial']
         
+        # Validação simples para evitar erro de coluna inexistente
+        for col in colunas_ordem:
+            if col not in df.columns:
+                print(f"AVISO CRÍTICO: Coluna '{col}' não encontrada no DataFrame! O script falhará.")
+
         # 3. Conversão para Lista
         valores = df[colunas_ordem].to_numpy().tolist()
 
@@ -91,29 +96,3 @@ def load_data(conn, df):
         raise e
     finally:
         cursor.close()
-
-# --- BLOCO PRINCIPAL (CORRIGIDO) ---
-if __name__ == "__main__":
-    # 1. Definição correta do caminho (apenas STRING)
-    excel_path = r"C:\Users\livsa\DM_Financeiro\Financial-Data-Engineering-Flow\data\Cadastros.xlsx"
-    
-    conexao = None
-
-    try:
-        # 2. Extração (Passando o caminho, não o dataframe)
-        df_raw = extract_data(excel_path)
-
-        # 3. Transformação
-        df_clean = transform_data(df_raw)
-
-        # 4. Carregamento
-        conexao = get_db_connection()
-        load_data(conexao, df_clean)
-
-    except Exception as error:
-        print(f"O pipeline falhou: {error}")
-
-    finally:
-        if conexao:
-            conexao.close()
-            print("Conexão encerrada.")

@@ -3,9 +3,8 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from dotenv import load_dotenv
 import os
-import numpy as np
 
-# Configuração Global
+# Carrega variáveis de ambiente (Caminho do Airflow)
 load_dotenv(dotenv_path="/opt/airflow/config/.env")
 
 def get_db_connection():
@@ -30,6 +29,7 @@ def extract_data(filepath):
     Lê a Tabela Empresa do Excel.
     """
     print(f"Lendo arquivo: {filepath}")
+    # Lê a aba "Empresa" do Excel
     df = pd.read_excel(filepath, sheet_name="Empresa")
     return df
 
@@ -40,7 +40,6 @@ def transform_data(df):
     print("Iniciando transformações de dados...")
     
     # Converte NaN (do Pandas/Excel) para None (do Python/SQL)
-    # Sem isso, o banco trava se houver célula vazia
     df = df.where(pd.notnull(df), None)
     
     return df
@@ -53,19 +52,18 @@ def load_data(conn, df):
     
     try:
         # 1. Limpeza
-        print("Limpando tabela dMascaraDRE...") # Corrigido o texto do log
-        cursor.execute("TRUNCATE TABLE public.dEmpresas;")
+        print("Limpando tabela dEmpresa...") 
+        cursor.execute("TRUNCATE TABLE public.dempresas;")
 
         # 2. Definição da Ordem das Colunas
-        colunas_ordem = ['CodEmpresa', 'RazaoEmpresa', 'Fornecedor', 'Cliente', 'Cidade', 'UF',
-       'Pais', 'Estado']
+        colunas_ordem = ['CodEmpresa', 'RazaoEmpresa', 'Fornecedor', 'Cliente', 'Cidade', 'UF', 'Pais', 'Estado']
         
         # 3. Conversão para Lista
         valores = df[colunas_ordem].to_numpy().tolist()
 
         # 4. SQL de INSERT 
         sql_insert = """
-        INSERT INTO public.dEmpresas (
+        INSERT INTO public.dempresas (
             CodEmpresa,
             RazaoEmpresa,
             Fornecedor,
@@ -90,27 +88,3 @@ def load_data(conn, df):
         raise e
     finally:
         cursor.close()
-
-
-if __name__ == "__main__":
-    excel_path = r"C:\Users\livsa\DM_Financeiro\Financial-Data-Engineering-Flow\data\Cadastros.xlsx"
-    conexao = None
-
-    try:
-        # 1. Extração
-        df_raw = extract_data(excel_path)
-
-        # 2. Transformação (Adicionada de volta)
-        df_clean = transform_data(df_raw)
-
-        # 3. Carregamento
-        conexao = get_db_connection()
-        load_data(conexao, df_clean) # Agora df_clean existe
-
-    except Exception as error:
-        print(f"O pipeline falhou: {error}")
-
-    finally:
-        if conexao:
-            conexao.close()
-            print("Conexão encerrada.")
